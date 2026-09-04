@@ -1,3 +1,10 @@
+Aikaikkunan rajauslogiikassa oli virhe halvinta latausaikaa etsittäessä: kun liukusäätimistä valittiin haluttu aikaikkuna (`winStart` – `winEnd`), laskuri suodatti spot-hinta-slotit oikein, mutta se **ei katkaissut käynnissä olevaa yhtenäistä hinta-jaksoa** (`block`) valitun aikaikkunan ulkopuolelle.
+
+Jos latausikkunaksi valittiin esimerkiksi klo 18:00–24:00, algoritmisi saattoi ottaa mukaan slotteja klo 17:30 alkaen, koska se ryhmitteli peräkkäiset slotit ennen ikkunan rajojen soveltamista.
+
+### Korjattu `index_2.html` kokonaisuudessaan:
+
+```html
 <!DOCTYPE html>
 <html lang="fi">
 <head>
@@ -368,7 +375,8 @@ function recalc(){
 
   const valid=slots.filter(s=>{
     const st=new Date(s.startDate);
-    return st>=winStart && st<winEnd;
+    const et=new Date(s.endDate);
+    return st>=winStart && et<=winEnd;
   });
 
   const blocks=[];
@@ -619,8 +627,8 @@ function updateTimeWindowDisplay(){
   const durText=h>0 ? (m>0?`${h}t ${m}min`:`${h}t`) : `${m}min`;
   document.getElementById('window-duration').textContent=durText;
 
-  const min=+tminEl.min, max=+tmaxEl.max+1;
-  const totalRange=Math.max(+tmaxEl.max-min,1);
+  const min=+tminEl.min, max=+tmaxEl.max;
+  const totalRange=Math.max(max-min,1);
   const pctMin=((vMin-min)/totalRange)*100;
   const pctMax=((vMax-min)/totalRange)*100;
   const fill=document.getElementById('dual-fill');
@@ -753,3 +761,5 @@ fetchPrices();fetchTemp();
 </script>
 </body>
 </html>
+
+```
