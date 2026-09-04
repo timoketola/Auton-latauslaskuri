@@ -1,10 +1,3 @@
-Aikaikkunan rajauslogiikassa oli virhe halvinta latausaikaa etsittäessä: kun liukusäätimistä valittiin haluttu aikaikkuna (`winStart` – `winEnd`), laskuri suodatti spot-hinta-slotit oikein, mutta se **ei katkaissut käynnissä olevaa yhtenäistä hinta-jaksoa** (`block`) valitun aikaikkunan ulkopuolelle.
-
-Jos latausikkunaksi valittiin esimerkiksi klo 18:00–24:00, algoritmisi saattoi ottaa mukaan slotteja klo 17:30 alkaen, koska se ryhmitteli peräkkäiset slotit ennen ikkunan rajojen soveltamista.
-
-### Korjattu `index_2.html` kokonaisuudessaan:
-
-```html
 <!DOCTYPE html>
 <html lang="fi">
 <head>
@@ -49,9 +42,57 @@ h1{font-size:25px;font-weight:800;margin:8px 0 3px;display:flex;align-items:cent
 .ctrl-big{background:var(--bg2);border-radius:var(--r2);padding:18px 18px 20px}
 .ctrl-big label{font-size:16px;color:var(--txt);display:block;margin-bottom:12px;font-weight:700}
 .ctrl-big .row{display:flex;align-items:center;gap:12px}
-.ctrl-big .sv{font-size:22px}
 
-input[type=range]{flex:1;accent-color:var(--acc);cursor:pointer;height:30px}
+/* Liukusäätimen ja numerokentän asettelu korjattuna */
+.ctrl-big .row input[type=range]{
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--acc);
+  cursor: pointer;
+  height: 30px;
+}
+
+.num-wrap{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  min-width: 54px;
+}
+
+.sv-input{
+  width: 32px;
+  font-size: 17px;
+  font-weight: 700;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  color: var(--txt);
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--txt2);
+  text-align: right;
+  padding: 0 1px;
+  -moz-appearance: textfield;
+}
+
+.sv-input::-webkit-outer-spin-button,
+.sv-input::-webkit-inner-spin-button{
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.sv-input:focus{
+  outline: none;
+  border-bottom-color: var(--acc);
+}
+
+.sv-unit{
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--txt);
+  font-family: 'SF Mono', ui-monospace, monospace;
+}
+
 .sv{font-size:17px;font-weight:700;min-width:54px;text-align:right;font-family:'SF Mono',ui-monospace,monospace;color:var(--txt)}
 
 /* Kaksoiskahva-liukusäädin aikaikkunalle */
@@ -226,9 +267,13 @@ select{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px}
 <div class="ctrl-stack">
   <div class="ctrl-big">
     <label>Nykyinen SoC</label>
-    <div class="row"><input type="range" min="1" max="89" value="20" id="soc0" step="1">
-      <input type="number" id="num0" class="sv-input" value="20" min="1" max="89" step="1" inputmode="numeric">
-      <span class="sv-unit">%</span>
+    <div class="row">
+      <input type="range" min="1" max="89" value="20" id="soc0" step="1">
+      <div class="num-wrap">
+        <input type="number" id="num0" class="sv-input" value="20" min="1" max="89" step="1" inputmode="numeric">
+        <span class="sv-unit">%</span>
+      </div>
+    </div>
   </div>
   <div class="ctrl-big">
     <label>Tavoite SoC</label>
@@ -270,7 +315,6 @@ select{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px}
 <script>
 const CHARGER=11,LOSS=0.10;
 
-// Suomen suurimpien kaupunkien koordinaatit säätietoa varten.
 const CITY_COORDS={
   tampere:{lat:61.4978,lon:23.7610,name:'Tampere'},
   helsinki:{lat:60.1699,lon:24.9384,name:'Helsinki'},
@@ -403,11 +447,9 @@ function recalc(){
     renderBars(new Set());return;
   }
 
-
-let minCost = Infinity;
+  let minCost = Infinity;
   let bestWin = null;
 
-  // Käydään läpi kaikki mahdolliset ikkunat aikajärjestyksessä (varhaisimmasta alkaen)
   for (const block of blocks) {
     if (block.length < slotsNeeded) continue;
     for (let i = 0; i <= block.length - slotsNeeded; i++) {
@@ -416,9 +458,7 @@ let minCost = Infinity;
         cost += block[i + j].price;
       }
 
-      // Valitaan uusi ikkuna VAIN jos se on AIDOSTI halvempi kuin aiemmin löydetty.
-      // Jos hinta on sama (tai toleranssin puitteissa sama), pidetään aiempi (eli aikaisempi) ikkuna!
-      if (cost < minCost - 0.0001) { 
+      if (cost < minCost - 0.0001) {
         minCost = cost;
         bestWin = block.slice(i, i + slotsNeeded);
       }
@@ -426,7 +466,6 @@ let minCost = Infinity;
   }
 
   const win = bestWin;
-  
   renderBars(new Set(win.map(s=>s.startDate)));
 
   const kwh=need*tf;
@@ -536,7 +575,6 @@ function renderBars(selSet){
   }
 }
 
-// Haetaan hinnat suoraan spot-hinta.fi -rajapinnasta (tukee CORS-pyyntöjä)
 async function fetchPrices(){
   document.getElementById('pstat').innerHTML='<span class="spin"></span>Haetaan...';
   try{
@@ -550,7 +588,7 @@ async function fetchPrices(){
       .map(item => ({
         startDate: item.DateTime,
         endDate: new Date(new Date(item.DateTime).getTime() + 15*60000).toISOString(),
-        price: item.PriceWithTax // Hinta c/kWh sis. ALV
+        price: item.PriceWithTax
       }))
       .filter(s => new Date(s.endDate) > now)
       .sort((a,b) => new Date(a.startDate) - new Date(b.startDate));
@@ -641,11 +679,36 @@ function updateTimeWindowDisplay(){
   fill.style.width=(pctMax-pctMin)+'%';
 }
 
-['soc0','soc1','tmin','tmax'].forEach(id=>{
+const soc0Range = document.getElementById('soc0');
+const num0Input = document.getElementById('num0');
+
+soc0Range.addEventListener('input', function(){
+  num0Input.value = this.value;
+  if(pOk&&tOk) recalc();
+});
+
+num0Input.addEventListener('input', function(){
+  let v = parseInt(this.value, 10);
+  if(isNaN(v)) return;
+  if(v < 1) v = 1;
+  if(v > 89) v = 89;
+  soc0Range.value = v;
+  if(pOk&&tOk) recalc();
+});
+
+num0Input.addEventListener('change', function(){
+  let v = parseInt(this.value, 10);
+  if(isNaN(v) || v < 1) v = 1;
+  if(v > 89) v = 89;
+  this.value = v;
+  soc0Range.value = v;
+  if(pOk&&tOk) recalc();
+});
+
+['soc1','tmin','tmax'].forEach(id=>{
   document.getElementById(id).addEventListener('input',function(){
     const v=+this.value;
-    if(id==='soc0')document.getElementById('sv0').textContent=v+' %';
-    else if(id==='soc1')document.getElementById('sv1').textContent=v+' %';
+    if(id==='soc1')document.getElementById('sv1').textContent=v+' %';
     else if(id==='tmin'){
       const tmaxEl=document.getElementById('tmax');
       if(v>=+tmaxEl.value) tmaxEl.value=Math.min(+tmaxEl.max,v+1);
@@ -766,5 +829,3 @@ fetchPrices();fetchTemp();
 </script>
 </body>
 </html>
-
-```
