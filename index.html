@@ -43,7 +43,6 @@ h1{font-size:25px;font-weight:800;margin:8px 0 3px;display:flex;align-items:cent
 .ctrl-big label{font-size:16px;color:var(--txt);display:block;margin-bottom:12px;font-weight:700}
 .ctrl-big .row{display:flex;align-items:center;gap:12px}
 
-/* Liukusäätimen ja numerokentän asettelu korjattuna */
 .ctrl-big .row input[type=range]{
   flex: 1;
   min-width: 0;
@@ -95,7 +94,6 @@ h1{font-size:25px;font-weight:800;margin:8px 0 3px;display:flex;align-items:cent
 
 .sv{font-size:17px;font-weight:700;min-width:54px;text-align:right;font-family:'SF Mono',ui-monospace,monospace;color:var(--txt)}
 
-/* Kaksoiskahva-liukusäädin aikaikkunalle */
 #time-window-label{font-size:17px;font-weight:700;color:var(--txt);margin-bottom:16px;text-align:left;line-height:1.35}
 .dual-slider-wrap{position:relative;height:34px;margin:6px 2px 4px}
 .dual-track{position:absolute;top:50%;left:0;right:0;height:6px;border-radius:4px;background:var(--border2);transform:translateY(-50%)}
@@ -134,7 +132,6 @@ h1{font-size:25px;font-weight:800;margin:8px 0 3px;display:flex;align-items:cent
 .sval{font-size:13px;color:var(--txt2);font-weight:500}
 .res{background:var(--acc-bg);border:1px solid var(--acc);border-radius:var(--r2);padding:20px;margin-top:16px}
 .res-hdr{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.res-hdr span:nth-child(2){font-size:16px!important}
 .times{display:flex;align-items:baseline;gap:8px;margin-bottom:18px}
 .timecol{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
 .dlbl{font-size:13px;font-weight:600;color:var(--txt2);font-family:'SF Mono',ui-monospace,monospace}
@@ -152,6 +149,7 @@ h1{font-size:25px;font-weight:800;margin:8px 0 3px;display:flex;align-items:cent
 .binfo{background:var(--info-bg);color:var(--info-txt)}
 @media(prefers-color-scheme:dark){.bok{color:#00d4a8}}
 .err{background:var(--warn-bg);border:1px solid var(--warn-txt);border-radius:var(--r2);padding:18px;font-size:15px;line-height:1.5;color:var(--warn-txt);margin-top:16px}
+.warn-box{background:var(--warn-bg);border:1px solid var(--warn-txt);border-radius:var(--r);padding:10px 12px;font-size:13px;color:var(--warn-txt);margin-bottom:12px;line-height:1.4}
 .btn{display:flex;align-items:center;justify-content:center;gap:7px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r);padding:15px;font-size:16px;font-weight:600;color:var(--txt);cursor:pointer;margin-top:20px;width:100%;-webkit-tap-highlight-color:transparent}
 .btn:active{opacity:.6}
 .notice{background:var(--info-bg);border:0.5px solid var(--info-txt);border-radius:var(--r);padding:12px 14px;font-size:14px;color:var(--info-txt);margin-bottom:16px;line-height:1.5}
@@ -186,7 +184,7 @@ select{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px}
 </div>
 
 <div class="chips">
-  <span class="chip">11 kW / 3-vaihe</span>
+  <span class="chip" id="chip-power">11 kW / 3-vaihe 16A</span>
   <span class="chip">Häviö 10 %</span>
   <span class="chip" id="chip-cap">Akku 69 kWh</span>
   <span class="chip" id="chip-fees">Verot+siirto 9,55 snt/kWh</span>
@@ -195,6 +193,21 @@ select{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px}
 <details id="settings-panel">
   <summary>⚙️ Lisäasetukset</summary>
   <div class="settings-body">
+
+    <div class="g2">
+      <div class="ctrl">
+        <label>Laturin vaiheet</label>
+        <select id="set-phases">
+          <option value="1">1-vaihe</option>
+          <option value="2">2-vaihe</option>
+          <option value="3" selected>3-vaihe</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label>Virta (A / vaihe)</label>
+        <div class="row"><input type="number" id="set-amps" value="16" min="1" max="32" step="1" inputmode="numeric"></div>
+      </div>
+    </div>
 
     <div class="ctrl">
       <label>Akun kapasiteetti (kWh)</label>
@@ -253,7 +266,7 @@ select{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px}
     <div class="ctrl">
       <label>Hintatoleranssi halvimman jakson haussa (snt, koko lataukselle)</label>
       <div class="row"><input type="number" id="set-tolerance" value="0.1" min="0.1" max="20" step="0.1" inputmode="decimal"></div>
-      <div class="tolerance-hint">Kuinka paljon kokonaishinta voi vaihdella, jotta eri alkamisajat lasketaan "yhtä halvoiksi" (näkyy kahtena vaihtoehtona). Pienempi arvo = tarkempi haku, mutta voi jättää löytämättä lähes yhtä edullisia ikkunoita pitkien tasahintaisten jaksojen aikana. Vähintään 0,1 snt suositellaan, jotta pienet pyöristyserot eivät vaikuta tulokseen.</div>
+      <div class="tolerance-hint">Kuinka paljon kokonaishinta voi vaihdella, jotta eri alkamisajat lasketaan "yhtä halvoiksi".</div>
     </div>
 
     <button class="btn" id="set-save" type="button">✓ &nbsp;Tallenna asetukset</button>
@@ -313,7 +326,7 @@ select{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px}
 <button class="btn" onclick="refresh()">↻ &nbsp;Päivitä</button>
 
 <script>
-const CHARGER=11,LOSS=0.10;
+const LOSS=0.10;
 
 const CITY_COORDS={
   tampere:{lat:61.4978,lon:23.7610,name:'Tampere'},
@@ -328,6 +341,8 @@ const CITY_COORDS={
 };
 
 const DEFAULT_SETTINGS={
+  phases:3,
+  amps:16,
   cap:69,
   tempOn:true,
   loc:'tampere',
@@ -339,7 +354,7 @@ const DEFAULT_SETTINGS={
   tolerance:0.1,
 };
 const MIN_TOLERANCE=0.1;
-const SETTINGS_KEY='xc40_laturi_settings_v2';
+const SETTINGS_KEY='xc40_laturi_settings_v3';
 
 function loadSettings(){
   try{
@@ -347,11 +362,13 @@ function loadSettings(){
     if(!raw)return{...DEFAULT_SETTINGS};
     const saved=JSON.parse(raw);
     const merged={...DEFAULT_SETTINGS,...saved};
-    for(const key of['cap','lat','lon','delivery','transfer','elecTax','tolerance']){
+    for(const key of['phases','amps','cap','lat','lon','delivery','transfer','elecTax','tolerance']){
       const v=parseFloat(merged[key]);
       if(!isFinite(v)||isNaN(v)) merged[key]=DEFAULT_SETTINGS[key];
     }
     merged.tolerance=Math.max(MIN_TOLERANCE,merged.tolerance);
+    merged.phases=Math.min(3,Math.max(1,parseInt(merged.phases,10)));
+    merged.amps=Math.min(32,Math.max(1,parseInt(merged.amps,10)));
     merged.tempOn=!!merged.tempOn;
     return merged;
   }catch(e){return{...DEFAULT_SETTINGS};}
@@ -383,36 +400,63 @@ function slotDate(iso){
 function addMs(iso,ms){return new Date(new Date(iso).getTime()+ms).toISOString()}
 
 function getTF(t){
+  if(t===null) return 1.0;
   if(t>=15)return 1.0;
   if(t>=5)return 1+(15-t)*0.008;
   if(t>=-10)return 1.1+(5-t)*0.015;
   return 1.25+(-10-t)*0.01;
 }
 
+function getChargerKw(){
+  return (SETTINGS.phases * SETTINGS.amps * 230) / 1000;
+}
+
 function recalc(){
   const ra=document.getElementById('result');
-  if(!pOk||!tOk)return;
-
-  if(!slots.length){
-    ra.innerHTML='<div class="err">Pörssisähkön hintoja ei saatu haettua. Tarkista verkkoyhteys ja paina "Päivitä".</div>';
-    renderBars(new Set());return;
-  }
-  if(SETTINGS.tempOn && tempC===null){
-    ra.innerHTML='<div class="err">Lämpötilaa ei saatu haettua. Tarkista verkkoyhteys ja paina "Päivitä".</div>';
-    renderBars(new Set());return;
-  }
-
   const s0=+document.getElementById('soc0').value;
   const s1=+document.getElementById('soc1').value;
-  const tminSlot=+document.getElementById('tmin').value;
-  const tmaxSlot=+document.getElementById('tmax').value;
   const need=(s1-s0)/100*CAP;
-  const effKw=CHARGER*(1-LOSS);
+  
+  if(need<=0){
+    ra.innerHTML='<div class="res placeholder">Akku on jo tavoitetasolla.</div>';
+    renderBars(new Set());
+    return;
+  }
+
+  const chargerKw=getChargerKw();
+  const effKw=chargerKw*(1-LOSS);
   const tf=SETTINGS.tempOn ? getTF(tempC) : 1.0;
   const slotsNeeded=Math.ceil(need*tf/effKw*4);
+  const durText=formatDuration(slotsNeeded*15);
+  const kwh=need*tf;
 
-  if(need<=0){ra.innerHTML='<div class="res placeholder">Akku on jo tavoitetasolla.</div>';renderBars(new Set());return;}
+  let warningHtml='';
+  if(SETTINGS.tempOn && tempC===null){
+    warningHtml='<div class="warn-box">⚠️ Lämpötilatietoa ei saatu haettua. Latausaika lasketaan ilman lämpötilakorjausta (kerroin 1.0).</div>';
+  }
 
+  const tempRow=SETTINGS.tempOn
+    ? `<div class="ir"><span class="k">Lämpötilakorjaus</span><span class="v">${tempC!==null ? `×${tf.toFixed(2)} (${tempC.toFixed(1)} °C)` : '×1.00 (Sää ei saatavilla)'}</span></div>`
+    : `<div class="ir"><span class="k">Lämpötilakorjaus</span><span class="v" style="font-family:-apple-system,sans-serif;font-weight:500">Ei käytössä</span></div>`;
+
+  if(!slots.length){
+    ra.innerHTML=`
+      ${warningHtml}
+      <div class="res" style="border-color:var(--border2);background:var(--bg2)">
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px">⚠️ Pörssisähkön hintoja ei saatu haettua</div>
+        <div style="font-size:14px;color:var(--txt2);margin-bottom:14px">Arvioitu latausaika nykyisillä teho- ja akkuasetuksilla:</div>
+        <div class="ir"><span class="k">Tarvittava latausaika</span><span class="v" style="font-size:18px">${durText}</span></div>
+        <div class="ir"><span class="k">Latausteho (netto)</span><span class="v">${effKw.toFixed(1)} kW (${chargerKw.toFixed(1)} kW gross)</span></div>
+        <div class="ir"><span class="k">Ladattava energia</span><span class="v">${kwh.toFixed(1)} kWh</span></div>
+        ${tempRow}
+        <div class="ir"><span class="k">SoC ${s0}% → ${s1}%</span><span class="badge binfo">${need.toFixed(1)} kWh netto</span></div>
+      </div>`;
+    renderBars(new Set());
+    return;
+  }
+
+  const tminSlot=+document.getElementById('tmin').value;
+  const tmaxSlot=+document.getElementById('tmax').value;
   const now=new Date();
   const winStartRaw=new Date(TIMELINE_START.getTime()+tminSlot*15*60000);
   const winStart=winStartRaw<now?now:winStartRaw;
@@ -443,7 +487,7 @@ function recalc(){
   if(longestBlock.length<slotsNeeded){
     const availH=(availSlotsTotal/4).toFixed(1);
     const longestH=(longestBlock.length/4).toFixed(1);
-    ra.innerHTML=`<div class="err">Lataus vaatii ${formatDuration(slotsNeeded*15)} yhtäjaksoisesti. Valitusta ikkunasta (${winH.toFixed(1)} h) on julkaistuna yhteensä ${availH} h hintoja, mutta pisin yhtäjaksoinen tunnettu jakso on vain ${longestH} h (osa hinnoista puuttuu tai ei ole vielä julkaistu). Odota hintojen julkaisua, laajenna ikkunaa tai lyhennä tarvittavaa latausaikaa.</div>`;
+    ra.innerHTML=`${warningHtml}<div class="err">Lataus vaatii ${durText} yhtäjaksoisesti (${effKw.toFixed(1)} kW teholla). Valitusta ikkunasta (${winH.toFixed(1)} h) on julkaistuna yhteensä ${availH} h hintoja, mutta pisin yhtäjaksoinen tunnettu jakso on vain ${longestH} h. Odota hintojen julkaisua tai laajenna aikaikkunaa.</div>`;
     renderBars(new Set());return;
   }
 
@@ -468,7 +512,6 @@ function recalc(){
   const win = bestWin;
   renderBars(new Set(win.map(s=>s.startDate)));
 
-  const kwh=need*tf;
   const winCost=win.reduce((sum,s)=>sum+s.price,0);
   const avgSpot=winCost/slotsNeeded;
   const TRANSFER_FEE=SETTINGS.transfer;
@@ -476,10 +519,6 @@ function recalc(){
   const ELEC_TAX=SETTINGS.elecTax;
   const avgTotal=avgSpot+TRANSFER_FEE+DELIVERY_FEE+ELEC_TAX;
   const costEur=kwh*(avgTotal/100);
-  const durText=formatDuration(slotsNeeded*15);
-  const tempRow=SETTINGS.tempOn
-    ? `<div class="ir"><span class="k">Lämpötilakorjaus</span><span class="v">×${tf.toFixed(2)} (${tempC.toFixed(1)} °C)</span></div>`
-    : `<div class="ir"><span class="k">Lämpötilakorjaus</span><span class="v" style="font-family:-apple-system,sans-serif;font-weight:500">Ei käytössä</span></div>`;
 
   const startISO=win[0].startDate;
   const endISO=addMs(win[win.length-1].startDate,15*60000);
@@ -491,6 +530,7 @@ function recalc(){
   const isNow=new Date(startISO)<=now&&now<new Date(addMs(startISO,15*60000));
 
   ra.innerHTML=`
+${warningHtml}
 <div class="res">
   <div style="font-size:14px;font-weight:600;margin-bottom:4px">⚡ Edullisin yhtäjaksoinen ikkuna</div>
   ${sameDay?`<div class="datehdr">${startD}</div>`:''}
@@ -599,16 +639,16 @@ async function fetchPrices(){
   }catch(e){
     console.error('prices:', e);
     slots = []; pOk = true;
-    document.getElementById('pstat').innerHTML = '<span style="color:var(--warn-txt)">Hintoja ei saatu haettua</span>';
+    document.getElementById('pstat').innerHTML = '<span style="color:var(--warn-txt)">Ei saatu haettua</span>';
   }
-  if(pOk && tOk) recalc();
+  recalc();
 }
 
 async function fetchTemp(){
   if(!SETTINGS.tempOn){
     tempC=null;tOk=true;
     document.getElementById('tstat').innerHTML='<span class="badge binfo">Ei käytössä</span>';
-    if(pOk&&tOk)recalc();
+    recalc();
     return;
   }
   document.getElementById('tstat').innerHTML='<span class="spin"></span>Haetaan...';
@@ -622,10 +662,10 @@ async function fetchTemp(){
     document.getElementById('tstat').innerHTML=`<span class="badge ${cl}">${tempC.toFixed(1)} °C</span>`;
   }catch(e){
     console.error('temp:',e);
-    tempC=null;tOk=false;
-    document.getElementById('tstat').innerHTML='<span style="color:var(--warn-txt)">Lämpötilaa ei saatu haettua</span>';
+    tempC=null;tOk=true;
+    document.getElementById('tstat').innerHTML='<span style="color:var(--warn-txt)">Ei saatu haettua</span>';
   }
-  if(pOk&&tOk)recalc();
+  recalc();
 }
 
 function refresh(){
@@ -684,7 +724,7 @@ const num0Input = document.getElementById('num0');
 
 soc0Range.addEventListener('input', function(){
   num0Input.value = this.value;
-  if(pOk&&tOk) recalc();
+  recalc();
 });
 
 num0Input.addEventListener('input', function(){
@@ -693,7 +733,7 @@ num0Input.addEventListener('input', function(){
   if(v < 1) v = 1;
   if(v > 89) v = 89;
   soc0Range.value = v;
-  if(pOk&&tOk) recalc();
+  recalc();
 });
 
 num0Input.addEventListener('change', function(){
@@ -702,7 +742,7 @@ num0Input.addEventListener('change', function(){
   if(v > 89) v = 89;
   this.value = v;
   soc0Range.value = v;
-  if(pOk&&tOk) recalc();
+  recalc();
 });
 
 ['soc1','tmin','tmax'].forEach(id=>{
@@ -719,7 +759,7 @@ num0Input.addEventListener('change', function(){
       if(v<=+tminEl.value) tminEl.value=Math.max(0,v-1);
       updateTimeWindowDisplay();
     }
-    if(pOk&&tOk)recalc();
+    recalc();
   });
 });
 
@@ -743,6 +783,8 @@ function initTimeline(){
 initTimeline();
 
 function applySettingsToUI(){
+  document.getElementById('set-phases').value=SETTINGS.phases;
+  document.getElementById('set-amps').value=SETTINGS.amps;
   document.getElementById('set-cap').value=SETTINGS.cap;
   document.getElementById('set-tempon').checked=SETTINGS.tempOn;
   document.getElementById('set-loc').value=SETTINGS.loc;
@@ -761,6 +803,8 @@ function applySettingsToUI(){
   document.getElementById('loc-name-weather').textContent=locName;
   document.getElementById('weather-section').style.display=SETTINGS.tempOn?'':'none';
 
+  const kw = getChargerKw();
+  document.getElementById('chip-power').textContent=`${kw.toFixed(1)} kW / ${SETTINGS.phases}-vaihe ${SETTINGS.amps}A`;
   document.getElementById('chip-cap').textContent=`Akku ${SETTINGS.cap} kWh`;
   document.getElementById('chip-fees').textContent=`Verot+siirto ${(SETTINGS.transfer+SETTINGS.delivery+SETTINGS.elecTax).toFixed(2).replace('.',',')} snt/kWh`;
 
@@ -784,6 +828,8 @@ document.getElementById('set-save').addEventListener('click',function(){
     : {lat:CITY_COORDS[loc].lat, lon:CITY_COORDS[loc].lon};
 
   const newSettings={
+    phases:parseInt(document.getElementById('set-phases').value,10)||DEFAULT_SETTINGS.phases,
+    amps:parseInt(document.getElementById('set-amps').value,10)||DEFAULT_SETTINGS.amps,
     cap:parseFloat(document.getElementById('set-cap').value)||DEFAULT_SETTINGS.cap,
     tempOn:document.getElementById('set-tempon').checked,
     loc:loc,
@@ -810,7 +856,7 @@ document.getElementById('set-save').addEventListener('click',function(){
   if(tempEffectChanged||locChanged){
     tOk=false;
     fetchTemp();
-  } else if(pOk&&tOk){
+  } else {
     recalc();
   }
 });
@@ -824,7 +870,6 @@ document.getElementById('set-reset').addEventListener('click',function(){
 });
 
 applySettingsToUI();
-
 fetchPrices();fetchTemp();
 </script>
 </body>
