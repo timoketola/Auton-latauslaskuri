@@ -226,7 +226,9 @@ select{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:15px}
 <div class="ctrl-stack">
   <div class="ctrl-big">
     <label>Nykyinen SoC</label>
-    <div class="row"><input type="range" min="1" max="89" value="20" id="soc0" step="1"><span class="sv" id="sv0">20 %</span></div>
+    <div class="row"><input type="range" min="1" max="89" value="20" id="soc0" step="1">
+      <input type="number" id="num0" class="sv-input" value="20" min="1" max="89" step="1" inputmode="numeric">
+      <span class="sv-unit">%</span>
   </div>
   <div class="ctrl-big">
     <label>Tavoite SoC</label>
