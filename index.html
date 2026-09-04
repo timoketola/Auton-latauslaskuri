@@ -286,7 +286,7 @@ const DEFAULT_SETTINGS={
   tolerance:0.1,
 };
 const MIN_TOLERANCE=0.1;
-const SETTINGS_KEY='xc40_laturi_settings_v2'; // bumpattu versio pakottaa puhtaan latauksen
+const SETTINGS_KEY='xc40_laturi_settings_v2';
 
 function loadSettings(){
   try{
@@ -294,8 +294,6 @@ function loadSettings(){
     if(!raw)return{...DEFAULT_SETTINGS};
     const saved=JSON.parse(raw);
     const merged={...DEFAULT_SETTINGS,...saved};
-    // Validoi jokainen numeerinen arvo - NaN, null tai epäkelpo
-    // arvo (esim. vanha versio lisäsi kentän myöhemmin) korvataan oletuksella.
     for(const key of['cap','lat','lon','delivery','transfer','elecTax','tolerance']){
       const v=parseFloat(merged[key]);
       if(!isFinite(v)||isNaN(v)) merged[key]=DEFAULT_SETTINGS[key];
@@ -306,14 +304,13 @@ function loadSettings(){
   }catch(e){return{...DEFAULT_SETTINGS};}
 }
 function saveSettingsToStorage(s){
-  try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));}catch(e){/* esim. yksityinen selaus - ei kriittistä */}
+  try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));}catch(e){}
 }
 
 let SETTINGS=loadSettings();
-// CAP pysyy omana muuttujanaan koska sitä käytetään hyvin usein laskennassa
 let CAP=SETTINGS.cap;
 let slots=[],tempC=null,pOk=false,tOk=false;
-let TIMELINE_START=new Date(); // ankkuripiste, asetetaan tarkasti initTimeline():ssa
+let TIMELINE_START=new Date();
 
 if(location.protocol==='file:'){
   document.getElementById('cors-notice').style.display='block';
@@ -354,7 +351,7 @@ function recalc(){
 
   const s0=+document.getElementById('soc0').value;
   const s1=+document.getElementById('soc1').value;
-  const tminSlot=+document.getElementById('tmin').value; // 15min-slotteja TIMELINE_START:sta
+  const tminSlot=+document.getElementById('tmin').value;
   const tmaxSlot=+document.getElementById('tmax').value;
   const need=(s1-s0)/100*CAP;
   const effKw=CHARGER*(1-LOSS);
@@ -364,12 +361,6 @@ function recalc(){
   if(need<=0){ra.innerHTML='<div class="res placeholder">Akku on jo tavoitetasolla.</div>';renderBars(new Set());return;}
 
   const now=new Date();
-
-  // TIMELINE_START on aikajanan ankkuripiste (päivitetään initTimeline():ssä
-  // sekä sivun latautuessa että refresh()-kutsun yhteydessä).
-  // tmin/tmax-säätimet ovat 15 min -slotti-indeksejä tästä ankkurista.
-  // winStart ei voi koskaan olla menneisyydessä, jottei algoritmi
-  // yritä löytää halvinta ikkunaa jo ohitetuista tunneista.
   const winStartRaw=new Date(TIMELINE_START.getTime()+tminSlot*15*60000);
   const winStart=winStartRaw<now?now:winStartRaw;
   const winEnd=new Date(TIMELINE_START.getTime()+tmaxSlot*15*60000);
@@ -380,12 +371,6 @@ function recalc(){
     return st>=winStart && st<winEnd;
   });
 
-  // Pilko valid-lista yhtenäisiin lohkoihin: vain peräkkäiset 15 min
-  // vartit muodostavat yhden lohkon. Verrataan startDate-kenttiä
-  // toisiinsa (edellinen alku + 15min == seuraava alku) sen sijaan että
-  // luotettaisiin endDate-kenttään, joka API:ssa on 1ms vajaa (esim.
-  // 21:59:59.999 eikä 22:00:00.000) ja aiheuttaisi virheellisen aukon
-  // jokaisen vartin välille.
   const blocks=[];
   let cur=[];
   for(const s of valid){
@@ -409,36 +394,19 @@ function recalc(){
   }
 
   let best=Infinity,bestBlock=null;
-  // EQUAL_TOLERANCE: kaksi ikkunaa lasketaan "yhtä halvoiksi" jos niiden
-  // kokonaishintaero on alle 0.1 snt (koko ladattavan jakson summana, ei
-  // per slot). Tämä on tarkoituksella väljempi kuin liukulukutarkkuuden
-  // pyöristysvirhe (joka olisi luokkaa 1e-9-1e-12), koska todellisessa
-  // spot-hintadatassa esim. pitkä "0 snt/kWh" -jakso voi sisältää pieniä
-  // todellisia senttitason vaihteluita (0.00, 0.01, -0.00 jne.) eri
-  // varttien välillä ilman, että ne ovat käyttäjän kannalta merkityksellisesti
-  // eri hintaisia. Ilman tätä väljyyttä aiemmin käytetty 1e-9-toleranssi
-  // hylkäsi virheellisesti suurimman osan todellisuudessa yhtä edullisista
-  // ikkunoista, ja näytetty ikkuna kapeni paljon todellista lyhyemmäksi.
   const EQUAL_TOLERANCE=Math.max(MIN_TOLERANCE,SETTINGS.tolerance||MIN_TOLERANCE);
-  const candidates=[]; // {block, idx} - kaikki indeksit joiden kustannus on lähellä best:iä
+  const candidates=[];
   for(const block of blocks){
     if(block.length<slotsNeeded)continue;
     for(let i=0;i<=block.length-slotsNeeded;i++){
       let c=0;for(let j=0;j<slotsNeeded;j++)c+=block[i+j].price;
       if(c<best-EQUAL_TOLERANCE){best=c;bestBlock=block;candidates.length=0;candidates.push({block,idx:i});}
       else if(Math.abs(c-best)<=EQUAL_TOLERANCE){
-        // Jos tämä on aiempaa hieman halvempi (mutta toleranssin sisällä),
-        // päivitetään best tarkimpaan löydettyyn arvoon ilman kandidaattien
-        // nollaamista - näin "best" lähestyy todellista minimiä asteittain
-        // ja kaikki sen toleranssin sisällä olevat pysyvät kandidaatteina.
         if(c<best)best=c;
         candidates.push({block,idx:i});
       }
     }
   }
-  // Toinen kierros: koska best saattoi tarkentua ensimmäisen kierroksen
-  // aikana, suodatetaan lopuksi vielä kerran lopullista best-arvoa vasten
-  // ja valitaan näistä aikaisin aloitus (pienin indeksi bestBlock:ssa).
   const finalCandidates=candidates.filter(c=>{
     let cost=0;for(let j=0;j<slotsNeeded;j++)cost+=c.block[c.idx+j].price;
     return Math.abs(cost-best)<=EQUAL_TOLERANCE;
@@ -505,9 +473,6 @@ function renderBars(selSet){
   wrap.innerHTML='';lw.innerHTML='';
   if(!slots.length){if(dr)dr.textContent='';return;}
 
-  // Rakenna täysi 48h aikajana 15 min välein nykyhetkestä alkaen,
-  // jotta puuttuvat (julkaisemattomat) vartit näkyvät selvinä aukkoina
-  // eivätkä vain "katoa" kaaviosta.
   const now=new Date();
   const start=new Date(now); start.setMinutes(Math.floor(start.getMinutes()/15)*15,0,0);
   const byTime={};
@@ -519,7 +484,6 @@ function renderBars(selSet){
     const found=byTime[t.getTime()];
     timeline.push(found?{...found,missing:false}:{startDate:t.toISOString(),missing:true});
   }
-  // Leikkaa pois loppupään tyhjä alue jossa ei ole enää mitään tietoa eikä se siis ole "aukko" vaan tuntemattoman tulevaisuuden alkua
   let lastKnown=-1;
   timeline.forEach((s,i)=>{if(!s.missing)lastKnown=i;});
   const tl=timeline.slice(0,Math.max(lastKnown+1,4));
@@ -559,57 +523,37 @@ function renderBars(selSet){
   }
 }
 
-async function fetchJson(url){
-  const attempts=[];
-
-  // 1) Suora kutsu - toimii jos palvelin joskus lisää CORS-tuen
-  try{
-    const r=await fetch(url,{mode:'cors'});
-    if(r.ok) return await r.json();
-    attempts.push('suora: HTTP '+r.status);
-  }catch(e){ attempts.push('suora: '+e.message); }
-
-  // 2) corsproxy.io
-  try{
-    const r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(url));
-    if(r.ok) return await r.json();
-    attempts.push('corsproxy.io: HTTP '+r.status);
-  }catch(e){ attempts.push('corsproxy.io: '+e.message); }
-
-  // 3) allorigins.win
-  try{
-    const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
-    if(r.ok) return await r.json();
-    attempts.push('allorigins: HTTP '+r.status);
-  }catch(e){ attempts.push('allorigins: '+e.message); }
-
-  console.error('Kaikki hakutavat epäonnistuivat ('+url+'): '+attempts.join(' | '));
-  throw new Error('Kaikki hakutavat epäonnistuivat');
-}
-
+// Haetaan hinnat suoraan spot-hinta.fi -rajapinnasta (tukee CORS-pyyntöjä)
 async function fetchPrices(){
   document.getElementById('pstat').innerHTML='<span class="spin"></span>Haetaan...';
   try{
-    const d=await fetchJson('https://api.porssisahko.net/v2/latest-prices.json');
-    if(!d?.prices?.length)throw new Error('no data');
-    const now=new Date();
-    slots=[...d.prices]
-      .sort((a,b)=>new Date(a.startDate)-new Date(b.startDate))
-      .filter(s=>new Date(s.endDate)>now);
-    if(slots.length<4)throw new Error('liian vähän slotteja');
-    pOk=true;
-    document.getElementById('pstat').innerHTML='<span style="color:#006e55;font-weight:600">✓</span> '+slots.length+' varttia ('+(slots.length/4).toFixed(1)+' h)';
+    const r = await fetch('https://api.spot-hinta.fi/TodayAndDayForward');
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if(!data?.length) throw new Error('Ei dataa');
+
+    const now = new Date();
+    slots = data
+      .map(item => ({
+        startDate: item.DateTime,
+        endDate: new Date(new Date(item.DateTime).getTime() + 15*60000).toISOString(),
+        price: item.PriceWithTax // Hinta c/kWh sis. ALV
+      }))
+      .filter(s => new Date(s.endDate) > now)
+      .sort((a,b) => new Date(a.startDate) - new Date(b.startDate));
+
+    if(slots.length < 4) throw new Error('Liian vähän slotteja');
+    pOk = true;
+    document.getElementById('pstat').innerHTML = '<span style="color:#006e55;font-weight:600">✓</span> ' + slots.length + ' varttia (' + (slots.length/4).toFixed(1) + ' h)';
   }catch(e){
-    console.error('prices:',e);
-    slots=[];pOk=true;
-    document.getElementById('pstat').innerHTML='<span style="color:var(--warn-txt)">Hintoja ei saatu haettua</span>';
+    console.error('prices:', e);
+    slots = []; pOk = true;
+    document.getElementById('pstat').innerHTML = '<span style="color:var(--warn-txt)">Hintoja ei saatu haettua</span>';
   }
-  if(pOk&&tOk)recalc();
+  if(pOk && tOk) recalc();
 }
 
 async function fetchTemp(){
-  // Jos lämpötilavaikutus on kytketty pois, ei tarvita säätietoa ollenkaan -
-  // tf=1.0 aina, eikä turhaa verkkokutsua tehdä.
   if(!SETTINGS.tempOn){
     tempC=null;tOk=true;
     document.getElementById('tstat').innerHTML='<span class="badge binfo">Ei käytössä</span>';
@@ -618,7 +562,9 @@ async function fetchTemp(){
   }
   document.getElementById('tstat').innerHTML='<span class="spin"></span>Haetaan...';
   try{
-    const d=await fetchJson(`https://api.open-meteo.com/v1/forecast?latitude=${SETTINGS.lat}&longitude=${SETTINGS.lon}&current=temperature_2m&timezone=Europe%2FHelsinki`);
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${SETTINGS.lat}&longitude=${SETTINGS.lon}&current=temperature_2m&timezone=Europe%2FHelsinki`);
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
     if(d?.current?.temperature_2m===undefined)throw new Error();
     tempC=d.current.temperature_2m;tOk=true;
     const cl=tempC<0?'bwarn':tempC<8?'binfo':'bok';
@@ -636,26 +582,20 @@ function refresh(){
   document.getElementById('result').innerHTML='<div class="placeholder">Haetaan...</div>';
   document.getElementById('bars').innerHTML='';
   document.getElementById('hlbls').innerHTML='';
-  // Päivitä aikajana-ankkuri nykyhetkeen, jotta säätimet ja ikkuna
-  // ovat aina synkronissa todellisen ajan kanssa.
   initTimeline();
   fetchPrices();fetchTemp();
 }
 
-// Muuntaa slotti-indeksin (15 min -yksiköitä TIMELINE_START:sta) näytettäväksi
-// kellonajaksi. Jos slotti osuu seuraavalle kalenteripäivälle verrattuna
-// TIMELINE_START:n päivään, lisätään perään "(+1)".
 function slotToParts(slot){
   const t=new Date(TIMELINE_START.getTime()+slot*15*60000);
   const dayDiff=Math.floor((new Date(t.getFullYear(),t.getMonth(),t.getDate())-
     new Date(TIMELINE_START.getFullYear(),TIMELINE_START.getMonth(),TIMELINE_START.getDate()))/86400000);
-  // Erikoistapaus: täsmälleen keskiyö esitetään edellisen vuorokauden
-  // loppuna "klo 24", ei seuraavan alkuna "klo 0".
   if(t.getHours()===0&&t.getMinutes()===0&&slot>0){
     return{dayLabel:dayDiff-1,clock:'24:00',dayWord:dayWord(dayDiff-1)};
   }
   return{dayLabel:dayDiff,clock:pad(t.getHours())+':'+pad(t.getMinutes()),dayWord:dayWord(dayDiff)};
 }
+
 function dayWord(diff){
   if(diff<=0)return'Tänään';
   if(diff===1)return'Huomenna';
@@ -679,8 +619,7 @@ function updateTimeWindowDisplay(){
   const durText=h>0 ? (m>0?`${h}t ${m}min`:`${h}t`) : `${m}min`;
   document.getElementById('window-duration').textContent=durText;
 
-  // Päivitä täyttöpalkin sijainti ja leveys kahvojen väliin
-  const min=+tminEl.min, max=+tminEl.max+1; // tmax.max on yhtä suurempi kuin tmin.max
+  const min=+tminEl.min, max=+tmaxEl.max+1;
   const totalRange=Math.max(+tmaxEl.max-min,1);
   const pctMin=((vMin-min)/totalRange)*100;
   const pctMax=((vMax-min)/totalRange)*100;
@@ -695,7 +634,6 @@ function updateTimeWindowDisplay(){
     if(id==='soc0')document.getElementById('sv0').textContent=v+' %';
     else if(id==='soc1')document.getElementById('sv1').textContent=v+' %';
     else if(id==='tmin'){
-      // Aikaisin aloitus ei voi ylittää myöhäisintä lopetusta
       const tmaxEl=document.getElementById('tmax');
       if(v>=+tmaxEl.value) tmaxEl.value=Math.min(+tmaxEl.max,v+1);
       updateTimeWindowDisplay();
@@ -709,16 +647,11 @@ function updateTimeWindowDisplay(){
   });
 });
 
-// Ankkuroi aikajana nykyhetkeen (pyöristettynä alaspäin lähimpään varttiin)
-// ja anna säätimien kattaa väli [nyt, huomenna klo 24:00]. "Aikaisin aloitus"
-// alkaa oletuksena nykyhetkestä (slotti 0), "myöhäisin lopetus" oletuksena
-// aikajanan lopusta (huomisilta/-yö klo 24:00).
 function initTimeline(){
   const now=new Date();
   now.setMinutes(Math.floor(now.getMinutes()/15)*15,0,0);
   TIMELINE_START=now;
 
-  // Slottien määrä nykyhetkestä huomiseen klo 24:00 asti.
   const tomorrowMidnight=new Date(now);
   tomorrowMidnight.setDate(tomorrowMidnight.getDate()+1);
   tomorrowMidnight.setHours(24,0,0,0);
@@ -732,8 +665,6 @@ function initTimeline(){
   updateTimeWindowDisplay();
 }
 initTimeline();
-
-// ---- Lisäasetukset: alustus, näyttö, tallennus ----
 
 function applySettingsToUI(){
   document.getElementById('set-cap').value=SETTINGS.cap;
@@ -800,7 +731,6 @@ document.getElementById('set-save').addEventListener('click',function(){
   msg.style.opacity='1';
   setTimeout(()=>{msg.style.opacity='0';setTimeout(()=>msg.style.display='none',300);},1500);
 
-  // Jos lämpötilavaikutus tai sijainti muuttui, säätieto on haettava uudelleen.
   if(tempEffectChanged||locChanged){
     tOk=false;
     fetchTemp();
