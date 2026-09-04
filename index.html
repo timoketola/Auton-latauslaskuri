@@ -401,27 +401,30 @@ function recalc(){
     renderBars(new Set());return;
   }
 
-  let best=Infinity,bestBlock=null;
-  const EQUAL_TOLERANCE=Math.max(MIN_TOLERANCE,SETTINGS.tolerance||MIN_TOLERANCE);
-  const candidates=[];
-  for(const block of blocks){
-    if(block.length<slotsNeeded)continue;
-    for(let i=0;i<=block.length-slotsNeeded;i++){
-      let c=0;for(let j=0;j<slotsNeeded;j++)c+=block[i+j].price;
-      if(c<best-EQUAL_TOLERANCE){best=c;bestBlock=block;candidates.length=0;candidates.push({block,idx:i});}
-      else if(Math.abs(c-best)<=EQUAL_TOLERANCE){
-        if(c<best)best=c;
-        candidates.push({block,idx:i});
+
+let minCost = Infinity;
+  let bestWin = null;
+
+  // Käydään läpi kaikki mahdolliset ikkunat aikajärjestyksessä (varhaisimmasta alkaen)
+  for (const block of blocks) {
+    if (block.length < slotsNeeded) continue;
+    for (let i = 0; i <= block.length - slotsNeeded; i++) {
+      let cost = 0;
+      for (let j = 0; j < slotsNeeded; j++) {
+        cost += block[i + j].price;
+      }
+
+      // Valitaan uusi ikkuna VAIN jos se on AIDOSTI halvempi kuin aiemmin löydetty.
+      // Jos hinta on sama (tai toleranssin puitteissa sama), pidetään aiempi (eli aikaisempi) ikkuna!
+      if (cost < minCost - 0.0001) { 
+        minCost = cost;
+        bestWin = block.slice(i, i + slotsNeeded);
       }
     }
   }
-  const finalCandidates=candidates.filter(c=>{
-    let cost=0;for(let j=0;j<slotsNeeded;j++)cost+=c.block[c.idx+j].price;
-    return Math.abs(cost-best)<=EQUAL_TOLERANCE;
-  });
-  const bestCandidates=finalCandidates.filter(c=>c.block===bestBlock);
-  const bestIdx=Math.min(...bestCandidates.map(c=>c.idx));
-  const win=bestBlock.slice(bestIdx,bestIdx+slotsNeeded);
+
+  const win = bestWin;
+  
   renderBars(new Set(win.map(s=>s.startDate)));
 
   const kwh=need*tf;
